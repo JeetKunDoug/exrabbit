@@ -133,12 +133,12 @@ defmodule Exrabbit.Utils do
 		end
 	end
 
-	def publish(channel, exchange, routing_key, message, properties) do
-		publish(channel, exchange, routing_key, message, properties, :no_confirmation)
+	def publish(channel, exchange, routing_key, message, headers) do
+		publish(channel, exchange, routing_key, message, headers, :no_confirmation)
 	end
 
-	def publish(channel, exchange, routing_key, message, properties, :no_confirmation) do
-		:amqp_channel.call channel, basic_publish(exchange: exchange, routing_key: routing_key), amqp_msg(payload: message, props: pbasic.new(properties))
+	def publish(channel, exchange, routing_key, message, headers, :no_confirmation) do
+		:amqp_channel.call channel, basic_publish(exchange: exchange, routing_key: routing_key), amqp_msg(payload: message, props: pbasic(headers: headers))
 	end
 
 	def publish(channel, exchange, routing_key, message, properties, :wait_confirmation) do
@@ -193,12 +193,6 @@ defmodule Exrabbit.Utils do
 		queue_declare_ok(queue: queue) = :amqp_channel.call channel, queue_declare(queue: queue)
 		queue
 	end
-
-	def declare_queue(channel, queue, opts) when is_map(opts) do
-		opts = Enum.concat [queue: queue], opts
-		queue_declare_ok(queue: queue) = :amqp_channel.call channel, queue_declare.new(opts)
-		queue
-	end
 	
 	def declare_queue(channel, queue, autodelete) do
 		queue_declare_ok(queue: queue) = :amqp_channel.call channel, queue_declare(queue: queue, auto_delete: autodelete)
@@ -214,12 +208,6 @@ defmodule Exrabbit.Utils do
 		exchange_declare_ok() = :amqp_channel.call channel, exchange.declare(exchange: exchange, type: "fanout", auto_delete: true)
 		exchange
 	end
-
-  def declare_exchange(channel, exchange, opts) when is_map(opts) do
-    opts = Enum.concat [exchange: exchange], opts
-    exchange_declare_ok() = :amqp_channel.call channel, exchange.declare.new(opts)
-    exchange
-  end
 	
 	def declare_exchange(channel, exchange, type, autodelete) do
 		exchange_declare_ok() = :amqp_channel.call channel, exchange_declare(exchange: exchange, type: type, auto_delete: autodelete)
@@ -240,9 +228,10 @@ defmodule Exrabbit.Utils do
 		queue_bind_ok() = :amqp_channel.call channel, queue_bind(queue: queue, exchange: exchange, routing_key: key)	
 	end
   
-  	def parse_message({basic_deliver(delivery_tag: tag), amqp_msg(props: pbasic(reply_to: nil), payload: payload)}), do: {tag, payload}
-	def parse_message({basic_deliver(delivery_tag: tag), amqp_msg(props: pbasic(reply_to: reply_to), payload: payload)}), do: {tag, payload, reply_to}
-	def parse_message({basic_deliver(delivery_tag: tag), amqp_msg(props: props, payload: payload)}) when Record.record?(props, pbasic), do: {tag, payload, props}
+  	def parse_message({basic_deliver(delivery_tag: tag), amqp_msg(props: pbasic(reply_to: nil, headers: nil), payload: payload)}), do: {tag, payload}
+	def parse_message({basic_deliver(delivery_tag: tag), amqp_msg(props: pbasic(reply_to: reply_to, headers: nil), payload: payload)}), do: {tag, payload, reply_to}
+	def parse_message({basic_deliver(delivery_tag: tag), amqp_msg(props: pbasic(reply_to: nil, headers: headers), payload: payload)}), do: {tag, payload, headers}
+	def parse_message({basic_deliver(delivery_tag: tag), amqp_msg(props: pbasic(reply_to: reply_to, headers: headers), payload: payload)}), do: {tag, payload, reply_to, headers}
 	def parse_message({basic_deliver(delivery_tag: tag), amqp_msg(payload: payload)}), do: {:message,tag, payload}
 	def parse_message(basic_cancel_ok()), do: nil
 	def parse_message(basic_consume_ok()), do: nil
