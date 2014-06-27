@@ -170,6 +170,12 @@ defmodule Exrabbit.Utils do
 		queue_declare_ok(queue: queue) = :amqp_channel.call channel, queue_declare(queue: queue)
 		queue
 	end
+
+	def declare_queue(channel, queue, opts) when is_map(opts) do
+		opts = Enum.concat [queue: queue], opts
+		queue_declare_ok(queue: queue) = :amqp_channel.call channel, queue_declare.new(opts)
+		queue
+	end
 	
 	def declare_queue(channel, queue, autodelete) do
 		queue_declare_ok(queue: queue) = :amqp_channel.call channel, queue_declare(queue: queue, auto_delete: autodelete)
